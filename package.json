@@ -2,17 +2,17 @@
   "name": "mobile-chat-pwa",
   "version": "1.0.0",
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:client": "next dev",
-    "dev:server": "nodemon server/index.js",
-    "build": "next build && next export",
-    "start": "concurrently \"npm run start:server\" \"npm run start:client\"",
-    "start:client": "npx http-server ./out -p 3000 -c-1 --cors",
+    "dev": "concurrently --kill-others-on-fail --prefix-colors \"blue,green\" --names \"SERVER,CLIENT\" \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "cross-env NEXT_TELEMETRY_DISABLED=1 next dev",
+    "dev:server": "nodemon --quiet server/index.js",
+    "build": "cross-env NODE_ENV=production next build && next export",
+    "start": "concurrently --names \"SERVER,CLIENT\" --prefix-colors \"blue,green\" \"npm run start:server\" \"npm run start:client\"",
+    "start:client": "npx http-server ./out -p 3000 -c-1 --cors --silent",
     "start:server": "node server/index.js",
     "lint": "next lint",
     "generate-vapid": "node generate-vapid-keys.js",
     "generate-icons": "node generate-icons.js",
-    "pwa-build": "NODE_ENV=production npm run build"
+    "pwa-build": "cross-env NODE_ENV=production npm run build"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -32,11 +32,12 @@
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
     "concurrently": "^8.0.0",
+    "nodemon": "^3.0.0",
+    "sharp": "^0.32.0",
+    "cross-env": "^7.0.3",
+    "typescript": "^5.0.0",
     "eslint": "^8.0.0",
     "eslint-config-next": "^14.0.0",
-    "http-server": "^14.1.1",
-    "nodemon": "^3.0.0",
-    "sharp": "^0.32.6",
-    "typescript": "^5.0.0"
+    "http-server": "^14.1.1"
   }
 }

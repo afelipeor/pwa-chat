@@ -15,37 +15,50 @@ interface Message {
 interface ChatRoomProps {
   token: string;
   currentUser: any;
+  conversationId?: string | null;
+  onBack?: () => void;
   onLogout: () => void;
 }
 
 export default function ChatRoom({
   token,
   currentUser,
+  conversationId,
+  onBack,
   onLogout,
 }: ChatRoomProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(true);
+  const [conversationInfo, setConversationInfo] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 3000);
-    subscribeToNotifications();
-    return () => clearInterval(interval);
-  }, []);
+    if (conversationId) {
+      fetchMessages();
+      fetchConversationInfo();
+      const interval = setInterval(fetchMessages, 3000);
+      subscribeToNotifications();
+      return () => clearInterval(interval);
+    }
+  }, [conversationId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   const fetchMessages = async () => {
+    if (!conversationId) return;
+
     try {
-      const response = await fetch(`${API_BASE}/api/messages`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetch(
+        `${API_BASE}/api/messages?conversationId=${conversationId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
       if (response.ok) {
         const data = await response.json();
@@ -60,8 +73,28 @@ export default function ChatRoom({
     }
   };
 
+  const fetchConversationInfo = async () => {
+    if (!conversationId) return;
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/conversations/${conversationId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setConversationInfo(data);
+      }
+    } catch (error) {
+      console.error('Error fetching conversation info:', error);
+    }
+  };
+
   const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+    if (!input.trim() || loading || !conversationId) return;
 
     setLoading(true);
     const messageText = input.trim();
@@ -74,7 +107,10 @@ export default function ChatRoom({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ text: messageText }),
+        body: JSON.stringify({
+          text: messageText,
+          conversationId,
+        }),
       });
 
       if (response.ok) {
@@ -128,25 +164,59 @@ export default function ChatRoom({
     return message.userId === currentUser.id;
   };
 
+  const getOtherParticipant = () => {
+    if (!conversationInfo) return null;
+    return conversationInfo.participants.find(
+      (p: any) => p.id !== currentUser.id
+    );
+  };
+
+  const otherParticipant = getOtherParticipant();
+
+  if (!conversationId) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.emptyState}>
+          <p>Select a conversation to start chatting</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.container}>
       <header className={styles.header}>
         <div className={styles.headerContent}>
-          <h2>Chat Room</h2>
-          <div className={styles.userInfo}>
-            <span className={styles.username}>{currentUser.username}</span>
+          {onBack && (
+            <button
+              onClick={onBack}
+              className={styles.backButton}>
+              ← Back
+            </button>
+          )}
+          <div className={styles.titleSection}>
+            <h2>
+              {otherParticipant
+                ? `Chat with ${otherParticipant.username}`
+                : 'Chat'}
+            </h2>
+            <span className={styles.userName}>
+              You: @{currentUser.username}
+            </span>
+          </div>
+          <div className={styles.headerActions}>
             <div
               className={`${styles.status} ${
                 connected ? styles.online : styles.offline
               }`}>
               {connected ? 'Online' : 'Offline'}
             </div>
+            <button
+              onClick={onLogout}
+              className={styles.logoutButton}>
+              Logout
+            </button>
           </div>
-          <button
-            onClick={onLogout}
-            className={styles.logoutButton}>
-            Logout
-          </button>
         </div>
       </header>
 

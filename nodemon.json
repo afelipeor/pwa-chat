@@ -1,0 +1,17 @@
+{
+  "watch": ["server/**/*"],
+  "ext": "js,json",
+  "ignore": [
+    "node_modules/**/*",
+    "public/**/*",
+    ".next/**/*",
+    "out/**/*",
+    "*.log"
+  ],
+  "delay": 2000,
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "verbose": false,
+  "quiet": true
+}

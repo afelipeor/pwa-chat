@@ -1,16 +1,52 @@
 import Head from 'next/head';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import ChatRoom from '../components/ChatRoom';
+import Conversations from '../components/Conversations';
 import LoginForm from '../components/LoginForm';
+
+type View = 'conversations' | 'chat';
 
 export default function Home() {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [currentView, setCurrentView] = useState<View>('conversations');
+  const [selectedConversationId, setSelectedConversationId] = useState<
+    string | null
+  >(null);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallButton, setShowInstallButton] = useState(false);
 
   useEffect(() => {
+    // Prevent unnecessary console logs during development
+    if (process.env.NODE_ENV === 'development') {
+      const originalWarn = console.warn;
+      const originalError = console.error;
+
+      console.warn = (...args) => {
+        const message = args.join(' ');
+        if (
+          message.includes('Fast Refresh') ||
+          message.includes('webpack-hmr') ||
+          message.includes('devtools')
+        ) {
+          return;
+        }
+        originalWarn.apply(console, args);
+      };
+
+      console.error = (...args) => {
+        const message = args.join(' ');
+        if (
+          message.includes('Failed to fetch') ||
+          message.includes('net::ERR_CONNECTION_REFUSED')
+        ) {
+          return;
+        }
+        originalError.apply(console, args);
+      };
+    }
+
     const savedToken = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
 
@@ -42,11 +78,11 @@ export default function Home() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js')
-        .then((registration) => {
-          console.log('✅ Service Worker registered:', registration);
+        .then(() => {
+          // Silent success
         })
-        .catch((error) => {
-          console.error('❌ Service Worker registration failed:', error);
+        .catch(() => {
+          // Silent error in development
         });
     }
 
@@ -58,28 +94,51 @@ export default function Home() {
     };
   }, []);
 
-  const handleInstallApp = async () => {
+  const handleInstallApp = useCallback(async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      console.log(`User response to install prompt: ${outcome}`);
       setDeferredPrompt(null);
       setShowInstallButton(false);
     }
-  };
+  }, [deferredPrompt]);
 
-  const handleLogin = (newToken: string, newUser: any) => {
+  const handleLogin = useCallback((newToken: string, newUser: any) => {
     setToken(newToken);
     setUser(newUser);
     localStorage.setItem('token', newToken);
     localStorage.setItem('user', JSON.stringify(newUser));
-  };
+  }, []);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     setToken(null);
     setUser(null);
+    setCurrentView('conversations');
+    setSelectedConversationId(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+  }, []);
+
+  const handleSelectConversation = useCallback((conversationId: string) => {
+    setSelectedConversationId(conversationId);
+    setCurrentView('chat');
+  }, []);
+
+  const handleBackToConversations = useCallback(() => {
+    setCurrentView('conversations');
+    setSelectedConversationId(null);
+  }, []);
+
+  const getPageTitle = () => {
+    if (!user) return 'Mobile Chat PWA';
+
+    if (currentView === 'conversations') {
+      return `Conversations - ${user.username} | Chat PWA`;
+    } else if (currentView === 'chat') {
+      return `Chat - ${user.username} | Chat PWA`;
+    }
+
+    return `${user.username} | Chat PWA`;
   };
 
   if (loading) {
@@ -101,7 +160,7 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Mobile Chat PWA</title>
+        <title>{getPageTitle()}</title>
         <meta
           name="description"
           content="Real-time mobile chat application with offline support and push notifications"
@@ -111,7 +170,6 @@ export default function Home() {
           content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
         />
 
-        {/* PWA Meta Tags */}
         <link
           rel="manifest"
           href="/manifest.json"
@@ -125,7 +183,6 @@ export default function Home() {
           content="#667eea"
         />
 
-        {/* Apple PWA Meta Tags */}
         <meta
           name="apple-mobile-web-app-capable"
           content="yes"
@@ -142,53 +199,7 @@ export default function Home() {
           rel="apple-touch-icon"
           href="/icons/apple-touch-icon-180x180.png"
         />
-        <link
-          rel="apple-touch-icon"
-          sizes="57x57"
-          href="/icons/apple-touch-icon-57x57.png"
-        />
-        <link
-          rel="apple-touch-icon"
-          sizes="60x60"
-          href="/icons/apple-touch-icon-60x60.png"
-        />
-        <link
-          rel="apple-touch-icon"
-          sizes="72x72"
-          href="/icons/apple-touch-icon-72x72.png"
-        />
-        <link
-          rel="apple-touch-icon"
-          sizes="76x76"
-          href="/icons/apple-touch-icon-76x76.png"
-        />
-        <link
-          rel="apple-touch-icon"
-          sizes="114x114"
-          href="/icons/apple-touch-icon-114x114.png"
-        />
-        <link
-          rel="apple-touch-icon"
-          sizes="120x120"
-          href="/icons/apple-touch-icon-120x120.png"
-        />
-        <link
-          rel="apple-touch-icon"
-          sizes="144x144"
-          href="/icons/apple-touch-icon-144x144.png"
-        />
-        <link
-          rel="apple-touch-icon"
-          sizes="152x152"
-          href="/icons/apple-touch-icon-152x152.png"
-        />
-        <link
-          rel="apple-touch-icon"
-          sizes="180x180"
-          href="/icons/apple-touch-icon-180x180.png"
-        />
 
-        {/* Windows/Microsoft Meta Tags */}
         <meta
           name="msapplication-TileColor"
           content="#667eea"
@@ -197,12 +208,7 @@ export default function Home() {
           name="msapplication-config"
           content="/browserconfig.xml"
         />
-        <meta
-          name="msapplication-TileImage"
-          content="/icons/icon-144x144.png"
-        />
 
-        {/* Standard Favicons */}
         <link
           rel="icon"
           type="image/png"
@@ -210,54 +216,8 @@ export default function Home() {
           href="/favicon.png"
         />
         <link
-          rel="icon"
-          type="image/png"
-          sizes="16x16"
-          href="/favicon.png"
-        />
-        <link
           rel="shortcut icon"
           href="/favicon.ico"
-        />
-
-        {/* Open Graph / Social Meta Tags */}
-        <meta
-          property="og:type"
-          content="website"
-        />
-        <meta
-          property="og:title"
-          content="Mobile Chat PWA"
-        />
-        <meta
-          property="og:description"
-          content="Real-time mobile chat application"
-        />
-        <meta
-          property="og:image"
-          content="/icons/icon-512x512.png"
-        />
-        <meta
-          property="og:url"
-          content="/"
-        />
-
-        {/* Twitter Meta Tags */}
-        <meta
-          name="twitter:card"
-          content="summary_large_image"
-        />
-        <meta
-          name="twitter:title"
-          content="Mobile Chat PWA"
-        />
-        <meta
-          name="twitter:description"
-          content="Real-time mobile chat application"
-        />
-        <meta
-          name="twitter:image"
-          content="/icons/icon-512x512.png"
         />
       </Head>
 
@@ -285,10 +245,19 @@ export default function Home() {
 
       {!token || !user ? (
         <LoginForm onLogin={handleLogin} />
+      ) : currentView === 'conversations' ? (
+        <Conversations
+          token={token}
+          currentUser={user}
+          onSelectConversation={handleSelectConversation}
+          onLogout={handleLogout}
+        />
       ) : (
         <ChatRoom
           token={token}
           currentUser={user}
+          conversationId={selectedConversationId}
+          onBack={handleBackToConversations}
           onLogout={handleLogout}
         />
       )}
