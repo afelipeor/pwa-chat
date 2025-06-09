@@ -1,8 +1,8 @@
-import Head from 'next/head';
 import { useCallback, useEffect, useState } from 'react';
 import ChatRoom from '../components/ChatRoom';
 import Conversations from '../components/Conversations';
 import LoginForm from '../components/LoginForm';
+import Head from 'next/head';
 
 type View = 'conversations' | 'chat';
 
@@ -82,7 +82,7 @@ export default function Home() {
           // Silent success
         })
         .catch(() => {
-          // Silent error in development
+          console.error('Service Worker registration failed');
         });
     }
 
